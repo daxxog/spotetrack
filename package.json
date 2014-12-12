@@ -1,0 +1,34 @@
+{
+    "name"        : "spotetrack",
+    "description" : "spotedis + node.js",
+    "homepage"    : "https://github.com/daxxog/spotetrack",
+    "main"        : "spotetrack.min.js",
+    "version"     : "0.0.1",
+    "engines": { "node" : ">=0.7.0" },
+    "maintainers": [{
+        "name"  : "David Volm",
+        "email" : "david@volminator.com",
+        "web"   : "http://daxxog.com/"
+    }],
+    "repository": {
+        "type" : "git",
+        "url"  : "https://github.com/daxxog/spotetrack.git"
+    },
+    "devDependencies": {
+        "bitfactory": "*",
+        "stoptime": "*",
+        "uglify-js": "*"
+    },
+    "dependencies": {
+        "hiredis": "*",
+        "redis": "*"
+    },
+    "scripts": {
+        "preinstall": "./preinstall.sh",
+        "prepublish": "./prepublish.sh",
+        "postpublish": "./postpublish.sh"
+    },
+    "bin": {
+        "spotetrack" : "./bin/spotetrack"
+    }
+}
