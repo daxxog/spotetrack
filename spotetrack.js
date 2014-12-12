@@ -55,7 +55,7 @@
                 return parseInt(v, 10);
             });
 
-            console.log('fmt', data);
+            console.log('update format', data);
 
             that.sample_rate = data[0];
             that.channels = data[1];
