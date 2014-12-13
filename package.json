@@ -21,7 +21,9 @@
     },
     "dependencies": {
         "hiredis": "*",
-        "redis": "*"
+        "redis": "*",
+        "mongodb": "*",
+        "gridfs-stream": "*"
     },
     "scripts": {
         "preinstall": "./preinstall.sh",

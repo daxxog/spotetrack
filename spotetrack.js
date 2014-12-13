@@ -21,13 +21,21 @@
   }
 }(this, function() {
     var Spotetrack,
+        FlacTrack,
+        MongoTrack,
+        Wrapper,
+        mongo = require('mongodb'),
+        Grid = require('gridfs-stream'),
         redis = require('redis'),
         Readable = require('stream').Readable,
-        inherits = require('util').inherits;
+        Transform = require('stream').Transform,
+        inherits = require('util').inherits,
+        spawn = require('child_process').spawn,
+        endian = require('os').endianness().replace('LE', 'little').replace('BE', 'big');
 
     Spotetrack = function(rlist, uri) {
         this.clients = [
-            redis.createClient(6379, '127.0.0.1', {
+            redis.createClient(6379, '127.0.0.1', { //binary data client
                 return_buffers: true,
                 auth_pass: null
             }),
@@ -55,12 +63,12 @@
                 return parseInt(v, 10);
             });
 
-            console.log('update format', data);
-
             that.sample_rate = data[0];
             that.channels = data[1];
             that.num_frames = data[2];
             that.frames_size = data[3];
+
+            that.emit('format');
         });
         this.clients[1].subscribe(this.uri+':format');
 
@@ -79,5 +87,63 @@
 
     Spotetrack.prototype._read = function() {};
 
-    return Spotetrack;
+    FlacTrack = function(rlist, uri) {
+        var track = new Spotetrack(rlist, uri),
+            that = this;
+
+        track.on('format', function() {
+            that.flac = spawn('flac', ['-', '--best', '--endian='+endian, '--bps=16', '--sign=signed', '--channels='+track.channels, '--sample-rate='+track.sample_rate, '-s', '-c']);
+            console.log(uri, 'fmt', endian, track.channels,track.sample_rate);
+            track.pipe(that.flac.stdin);
+            that.flac.stdout.pipe(that);
+        });
+
+        Transform.call(this);
+    }; inherits(FlacTrack, Transform);
+
+    FlacTrack.prototype._transform = function(data, encoding, cb) {
+        cb(null, data);
+    };
+
+    MongoTrack = function(rlist, uri, db) {
+        var that = this;
+
+        that.gfs = Grid(db, mongo);
+        that.gfs.exist({
+            filename: uri
+        }, function(err, found) {
+            if(found) {
+                console.log(uri, 'found in db');
+                that.gfs.createReadStream({
+                    filename: uri
+                }).pipe(that);
+            } else {
+                that.flac = new FlacTrack(rlist, uri);
+                that.gf = that.gfs.createWriteStream({
+                    filename: uri
+                });
+
+                that.flac.pipe(that);
+                that.flac.pipe(that.gf);
+            }
+        });
+
+        Transform.call(this);
+    }; inherits(MongoTrack, Transform);
+
+    MongoTrack.prototype._transform = function(data, encoding, cb) {
+        cb(null, data);
+    };
+
+    Wrapper = function(rlist, cb) {
+        this.rlist = rlist;
+
+        mongo.MongoClient.connect('mongodb://127.0.0.1:27017/' + rlist, function(err, db) {
+            cb(function(uri) {
+                return new MongoTrack(rlist, uri, db);
+            }, db);
+        });
+    };
+
+    return Wrapper;
 }));
